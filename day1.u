@@ -1,0 +1,43 @@
+getInput : Text -> {IO, Exception} Text
+getInput path =
+    readFileUtf8 (FilePath path)
+
+-- Day 1
+
+takeOut2Ints : Text -> {IO, Exception} (Int, Int)
+takeOut2Ints input =
+    ( Text.slice 0 5  input
+        |> Int.fromText
+        |> Optional.toGenericException
+    , Text.slice 8 15 input
+        |> Int.fromText
+        |> Optional.toGenericException
+    )
+
+parseLists : Text -> {IO, Exception} (List Int, List Int)
+parseLists input =
+    a = Text.splitOnNewline input |> List.filter (l -> Text.size l > 1)
+    b = List.map takeOut2Ints a
+    List.unzip b
+
+
+similarityScore : [Int] -> Int -> Int
+similarityScore l a =
+    a * Nat.toInt (List.count (x -> x == a) l)
+
+
+day1_1 : '{IO, Exception} Nat
+day1_1 = do
+    input = getInput "day1.input"
+    (l, r) = parseLists input
+    sl = List.sort l
+    sr = List.sort r
+    diffs = List.zipWith (a b -> Int.abs(a Int.- b)) sl sr
+    Nat.sum diffs
+
+day1_2 : '{IO, Exception} Int
+day1_2 = do 
+    input = getInput "day1.input"
+    (l, r) = parseLists input
+    scores = List.map (similarityScore r) l
+    Int.sum scores
