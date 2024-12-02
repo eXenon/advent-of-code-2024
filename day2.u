@@ -1,0 +1,34 @@
+isReportSafeRec : Boolean -> [Nat] -> Boolean
+isReportSafeRec rising l =
+    match l with
+    [f, s] ++ r | Nat.diff f s <= 0 -> false
+    [f, s] ++ r | Nat.diff f s > 3 -> false
+    [f, s] ++ r | (f < s) != rising -> false
+    [f, s] ++ r -> isReportSafeRec rising (List.cons s r)
+    _ -> true
+
+
+isReportSafe : [Nat] -> Boolean
+isReportSafe l =
+    match l with
+    [f, s] ++ r | Nat.diff f s <= 0 -> false
+    [f, s] ++ r | Nat.diff f s > 3 -> false
+    [f, s] ++ r -> isReportSafeRec (f < s) (List.cons s r)
+    _ -> true
+
+checkWithHole : ([Nat] -> Boolean) -> [Nat] -> Boolean
+checkWithHole f l =
+    -- This is stupid, don't do it. I can, but you shouldn't.
+    List.any (i -> f (List.deleteAt i l)) (Nat.range 0 (List.size l))
+
+day2_1 : '{IO, Exception} Nat
+day2_1 = do
+    lines = "day2.input" |> getInput |> Text.splitOnNewline
+    reports = List.map (l -> Text.split ?  l |> List.filter (i -> Text.size i > 0) |> List.map Nat.fromTextOrFail) lines
+    reports |> List.filter isReportSafe |> List.size
+
+day2_2 : '{IO, Exception} Nat
+day2_2 = do
+    lines = "day2.input" |> getInput |> Text.splitOnNewline
+    reports = List.map (l -> Text.split ?  l |> List.filter (i -> Text.size i > 0) |> List.map Nat.fromTextOrFail) lines
+    reports |> List.filter (checkWithHole isReportSafe) |> List.size
