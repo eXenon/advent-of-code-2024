@@ -1,0 +1,71 @@
+structural type SM2 =
+    ExpectingMorD
+    | ExpectingO
+    | ExpectingNorOP
+    | ExpectingAPP
+    | ExpectingT
+    | ExpectingU
+    | ExpectingL
+    | ExpectingOP
+    | ExpectingD1
+    | ExpectingD2
+    | ExpectingDoCP
+    | ExpectingDontOP
+    | ExpectingDontCP
+    | End
+
+type ParserState2 = {
+    sm: SM2,
+    buffer: Text,
+    currentPos: Nat,
+    bufferD1: Text,
+    bufferD2: Text,
+    enabled: Boolean,
+    acc: Nat,
+}
+
+init2 : Text -> ParserState2
+init2 b =
+    ParserState2 ExpectingMorD b 0 "" "" true 0
+
+advance2 : ParserState2 -> ParserState2
+advance2 s =
+    use SM2
+    let 
+        (ParserState2 sm b cp bd1 bd2 e acc) = s
+        match (sm, charAt cp b) with
+        (ExpectingMorD, Some ?m) -> ParserState2 ExpectingU b (cp + 1) "" "" e acc 
+        (ExpectingMorD, Some ?d) -> ParserState2 ExpectingO b (cp + 1) "" "" e acc 
+        (ExpectingO, Some ?o) -> ParserState2 ExpectingNorOP b (cp + 1) "" "" e acc 
+        (ExpectingNorOP, Some ?() -> ParserState2 ExpectingDoCP b (cp + 1) "" "" e acc 
+        (ExpectingDoCP, Some ?)) -> ParserState2 ExpectingMorD b (cp + 1) "" "" true acc 
+        (ExpectingNorOP, Some ?n) -> ParserState2 ExpectingAPP b (cp + 1) "" "" e acc 
+        (ExpectingAPP, Some ?') -> ParserState2 ExpectingT b (cp + 1) "" "" e acc 
+        (ExpectingT, Some ?t) -> ParserState2 ExpectingDontOP b (cp + 1) "" "" e acc 
+        (ExpectingDontOP, Some ?() -> ParserState2 ExpectingDontCP b (cp + 1) "" "" e acc 
+        (ExpectingDontCP, Some ?)) -> ParserState2 ExpectingMorD b (cp + 1) "" "" false acc 
+        (ExpectingU, Some ?u) -> ParserState2 ExpectingL b (cp + 1) "" "" e acc 
+        (ExpectingL, Some ?l) -> ParserState2 ExpectingOP b (cp + 1) "" "" e acc 
+        (ExpectingOP, Some ?() -> ParserState2 ExpectingD1 b (cp + 1) "" "" e acc 
+        (ExpectingD1, Some c) | isDigit c -> ParserState2 ExpectingD1 b (cp + 1) (snoc bd1 c) "" e acc 
+        (ExpectingD1, Some ?,) -> ParserState2 ExpectingD2 b (cp + 1) bd1 "" e acc 
+        (ExpectingD2, Some c) | isDigit c -> ParserState2 ExpectingD2 b (cp + 1) bd1 (snoc bd2 c) e acc 
+        (ExpectingD2, Some ?)) -> 
+            if e then 
+                ParserState2 ExpectingMorD b (cp + 1) "" "" e (addMult bd1 bd2 acc) 
+            else
+                ParserState2 ExpectingMorD b (cp + 1) "" "" e acc
+        (_, None) -> ParserState2 End b cp bd1 bd2 e acc
+        _ -> ParserState2 ExpectingMorD b (cp + 1) "" "" e acc
+
+doUntilEnd2 : ParserState2 -> Nat
+doUntilEnd2 s =
+    match ParserState2.sm s with
+    SM2.End -> ParserState2.acc s
+    _ -> doUntilEnd2 (advance2 s)
+
+day3_2 : '{IO, Exception} Nat
+day3_2 = do
+    input = getInput "day3.input"
+    doUntilEnd2 (init2 input)
+
