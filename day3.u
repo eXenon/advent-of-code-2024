@@ -1,0 +1,55 @@
+structural type SM =
+    ExpectingM
+    | ExpectingU
+    | ExpectingL
+    | ExpectingOP
+    | ExpectingD1
+    | ExpectingD2
+    | End
+
+type ParserState = {
+    sm: SM,
+    buffer: Text,
+    currentPos: Nat,
+    bufferD1: Text,
+    bufferD2: Text,
+    acc: Nat,
+}
+
+init : Text -> ParserState
+init b =
+    ParserState ExpectingM b 0 "" "" 0
+
+addMult : Text -> Text -> Nat -> Nat
+addMult d1 d2 acc =
+    match (Nat.fromText d1, Nat.fromText d2) with
+    (Some n1, Some n2) -> acc + (n1 * n2)
+    _ -> acc
+
+advance : ParserState -> ParserState
+advance s =
+    let 
+        (ParserState sm b cp bd1 bd2 acc) = s
+        match (sm, charAt cp b) with
+        (ExpectingM, Some ?m) -> ParserState ExpectingU b (cp + 1) "" "" acc 
+        (ExpectingU, Some ?u) -> ParserState ExpectingL b (cp + 1) "" "" acc 
+        (ExpectingL, Some ?l) -> ParserState ExpectingOP b (cp + 1) "" "" acc 
+        (ExpectingOP, Some ?() -> ParserState ExpectingD1 b (cp + 1) "" "" acc 
+        (ExpectingD1, Some c) | isDigit c -> ParserState ExpectingD1 b (cp + 1) (snoc bd1 c) "" acc 
+        (ExpectingD1, Some ?,) -> ParserState ExpectingD2 b (cp + 1) bd1 "" acc 
+        (ExpectingD2, Some c) | isDigit c -> ParserState ExpectingD2 b (cp + 1) bd1 (snoc bd2 c) acc 
+        (ExpectingD2, Some ?)) -> ParserState ExpectingM b (cp + 1) "" "" (addMult bd1 bd2 acc) 
+        (_, None) -> ParserState End b cp bd1 bd2 acc
+        _ -> ParserState ExpectingM b (cp + 1) "" "" acc
+
+doUntilEnd : ParserState -> Nat
+doUntilEnd s =
+    match ParserState.sm s with
+    End -> ParserState.acc s
+    _ -> doUntilEnd (advance s)
+
+day3_1 : '{IO, Exception} Nat
+day3_1 = do
+    input = getInput "day3.input"
+    doUntilEnd (init input)
+
