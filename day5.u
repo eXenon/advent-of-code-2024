@@ -1,0 +1,49 @@
+inputToRule : Text -> Optional (Nat, Nat)
+inputToRule s =
+    let parts = s 
+                    |> Text.split ?|
+                    |> List.filterMap Nat.fromText
+        match parts with
+        [a, b] -> Some (a, b)
+        _ -> None
+
+inputToUpdate : Text -> Optional [Nat]
+inputToUpdate s = 
+    if Text.size s == 0 then
+        None
+    else
+        s 
+            |> Text.split ?,
+            |> List.filterMap Nat.fromText
+            |> Some
+
+orderFactory : [(Nat, Nat)] -> (Nat -> Nat -> Boolean)
+orderFactory rules =
+    (a -> b -> Boolean.not (List.contains (b, a) rules)) 
+
+takeMiddle : [Nat] -> Nat
+takeMiddle l =
+    use Nat
+    List.at (List.size l / 2) l
+        |> Optional.getOrElse 9999999
+
+day5_1 : '{IO, Exception} Nat
+day5_1 = do
+    updates = getInput("day51.input") |> splitOnNewline |> List.filterMap inputToUpdate
+    rules = getInput("day52.input") |> splitOnNewline |> List.filterMap inputToRule
+    order = orderFactory rules
+    updates
+        |> List.filter (isSortedBy order)
+        |> List.map takeMiddle
+        |> Nat.sum
+
+day5_2 : '{IO, Exception} Nat
+day5_2 = do
+    updates = getInput("day51.input") |> splitOnNewline |> List.filterMap inputToUpdate
+    rules = getInput("day52.input") |> splitOnNewline |> List.filterMap inputToRule
+    order = orderFactory rules
+    updates
+        |> List.filter (u -> not (isSortedBy order u))
+        |> List.map (sortWith order)
+        |> List.map takeMiddle
+        |> Nat.sum
