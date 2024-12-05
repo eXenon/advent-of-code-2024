@@ -1,0 +1,137 @@
+type Position = {x: Nat, y: Nat }
+type Vector = {x: Int, y: Int }
+
+
+dbg : Text -> Text
+dbg s =
+    printLine s
+    s
+
+reverse : Vector -> Vector
+reverse v =
+    Vector (negate (x v)) (negate (y v))
+
+rotate90 : Vector -> Vector
+rotate90 v =
+    Vector (negate (y v)) (x v)
+
+printPosition : Position -> Text
+printPosition p =
+    (toText (x p)) ++ ":" ++ (toText (y p))
+
+printVector : Vector -> Text
+printVector v =
+    match (x v, y v) with
+    (-1, -1) -> "↖"
+    (-1, +0) -> "←"
+    (-1, +1) -> "↙"
+    (+0, -1) -> "↑"
+    (+0, +0) -> "̛·"
+    (+0, +1) -> "↓"
+    (+1, -1) -> "↗"
+    (+1, +0) -> "→"
+    (+1, +1) -> "↘"
+    (x, y) -> (toText x) ++ "|" ++ (toText y)
+
+truncate99 : Int -> Nat
+truncate99 i =
+    if i >= +0 then
+        Int.truncate0 i
+    else
+        999999
+
+goTo : Position -> Vector -> Position
+goTo p v =
+    use Int +
+    let x = truncate99 (Vector.x v + Nat.toInt (Position.x p))
+        let y = truncate99 (Vector.y v + Nat.toInt (Position.y p))
+            Position x y
+
+readAt : Position -> [Text] -> Char
+readAt p s =
+    let (x, y) = (Position.x p, Position.y p)
+        s
+            |> List.at y
+            |> Optional.getOrElse ""
+            |> Text.charAt x
+            |> Optional.getOrElse ?F
+
+checkAtAndTowards : Position -> Vector -> [Text] -> Boolean
+checkAtAndTowards p v s =
+    let p2 = goTo p v
+        let p3 = goTo p2 v
+            let p4 = goTo p3 v
+                let result = Text.fromCharList [readAt p s, readAt p2 s, readAt p3 s, readAt p4 s]
+                    if result == "XMAS" then
+                        [ printPosition p
+                        , printPosition p2
+                        , printPosition p3
+                        , printPosition p4
+                        , printVector v
+                        , result
+                        ]
+                            |> Text.unwords
+                            |> printLine
+                        true
+                    else
+                        result == "XMAS"
+
+checkAt : Position -> [Text] -> Nat
+checkAt p s =
+    [ Vector +0 +1
+    , Vector +1 +0
+    , Vector +0 -1
+    , Vector -1 +0
+    , Vector +1 +1
+    , Vector +1 -1
+    , Vector -1 +1
+    , Vector -1 -1
+    ]
+        |> List.filter (d -> checkAtAndTowards p d s)
+        |> List.size 
+
+checkMASAtAndTowards : Position -> Vector -> [Text] -> Boolean
+checkMASAtAndTowards p v s =
+    let minusv = reverse v
+        let p1 = goTo p minusv
+            let p2 = goTo p v
+                let result = Text.fromCharList [readAt p1 s, readAt p s, readAt p2 s]
+                    result == "MAS"
+
+checkXMASAtAndTowards : Position -> Vector -> [Text] -> Boolean
+checkXMASAtAndTowards p v s =
+    and (checkMASAtAndTowards p v s) (checkMASAtAndTowards p (rotate90 v) s)
+
+
+checkMASAt : Position -> [Text] -> Boolean
+checkMASAt p s =
+    if readAt p s == ?A then
+        [ Vector +1 +1
+        , Vector +1 -1
+        , Vector -1 +1
+        , Vector -1 -1
+        ]
+            |> List.any (d -> checkXMASAtAndTowards p d s)
+    else
+        false
+    
+allPositions : [Text] -> [Position]
+allPositions s =
+    let line = List.at 0 s |> Optional.getOrElse ""
+        Nat.range 0 (List.size s)
+            |> List.map (x -> Nat.range 0 (Text.size line) |> List.map (y -> Position x y))
+            |> List.join
+
+day4_1 : '{IO, Exception} Nat
+day4_1 = do
+    input = getInput("day4.input") |> Text.splitOnNewline
+    allPositions input
+        |> List.map (p -> checkAt p input)
+        |> Nat.sum
+
+day4_2 : '{IO, Exception} Nat
+day4_2 = do
+    input = getInput("day4.input") |> Text.splitOnNewline
+    allPositions input
+        |> List.filter (p -> checkMASAt p input)
+        |> List.size
