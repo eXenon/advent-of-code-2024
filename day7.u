@@ -1,0 +1,120 @@
+unique type Day7Puzzle = { target: Nat, inputs: [Nat]}
+
+splitInTwo : Text -> Char -> (Text, Text)
+splitInTwo s sep =
+    match Text.split sep s with
+    [p1, p2] ++ _ -> (p1, p2)
+    [p1] -> (p1, "")
+    [] -> ("", "")
+
+toPuzzleInput : Text -> Optional Day7Puzzle
+toPuzzleInput s =
+    let (starget, sinputs) = splitInTwo s ?:
+        let inputs = Text.split ?  sinputs |> List.filterMap Nat.fromText
+            match starget |> Nat.fromText with
+                Some target -> Some (Day7Puzzle target inputs)
+                None -> None
+
+concat : Nat -> Nat -> Nat
+concat a b =
+    (Nat.fromText ((Nat.toText a) ++ (Nat.toText b))) |> getOrBug "Expected integer"
+
+> concat 6 8
+> concat 157 651888
+
+makeList : a -> Nat -> [a]
+makeList a n =
+    if n == 0 then
+        []
+    else
+        cons a (makeList a (n - 1))
+
+toTernary : Nat -> [Nat]
+toTernary i =
+    if i < 3 then
+        [i]
+    else
+        cons (i % 3) (toTernary (i / 3))
+
+ternaryBit : Nat -> Nat -> Nat
+ternaryBit n i =
+    toTernary i |> List.at n |> getOrElse 0
+
+> toTernary 3
+> toTernary 165234
+
+headTail : [a] -> (a, [a])
+headTail l =
+    ( List.head l |> getOrBug "Expected non-empty list"
+    , List.tail l |> getOrBug "Expected non-empty list"
+    )
+
+checkSolutionHelper : Nat -> Nat -> (Nat, Nat) -> Nat
+checkSolutionHelper solution acc arg =
+    let (input, i) = arg
+        let bit = Nat.bit i solution
+            if bit == 0 then
+                acc + input
+            else
+                acc * input
+
+checkSolutionHelper2 : Nat -> Nat -> (Nat, Nat) -> Nat
+checkSolutionHelper2 solution acc arg =
+    let (input, i) = arg
+        let bit = ternaryBit i solution
+            match bit with
+            0 -> acc + input
+            1 -> acc * input
+            _ -> concat acc input
+
+
+checkSolution : Day7Puzzle -> Nat -> Boolean
+checkSolution puzzle solution =
+    let (h, t) = headTail (inputs puzzle)
+        List.indexed t
+            |> List.foldLeft (checkSolutionHelper solution) h
+            |> (==) (target puzzle)
+
+checkSolution2 : Day7Puzzle -> Nat -> Boolean
+checkSolution2 puzzle solution =
+    let (h, t) = headTail (inputs puzzle)
+        List.indexed t
+            |> List.foldLeft (checkSolutionHelper2 solution) h
+            |> (==) (target puzzle)
+
+
+checkFromTo : Nat -> Nat -> (Nat -> Boolean) -> Boolean
+checkFromTo from to f =
+    if from > to then
+        false
+    else
+        if (f from) then
+            true
+        else
+            checkFromTo (from + 1) to f
+
+solvable : Day7Puzzle -> Boolean
+solvable p =
+    let l = List.size (inputs p)
+        checkFromTo 0 ((Nat.pow 2 l) - 1) (checkSolution p)
+
+solvable2 : Day7Puzzle -> Boolean
+solvable2 p =
+    let l = List.size (inputs p)
+        checkFromTo 0 ((Nat.pow 3 l) - 1) (checkSolution2 p)
+
+day7_1 : '{IO, Exception} Nat
+day7_1 = do
+    input = getInput("day7.input") |> splitOnNewline |> List.filterMap toPuzzleInput
+    input
+        |> List.filter solvable
+        |> List.map target
+        |> Nat.sum
+
+day7_2 : '{IO, Exception} Nat
+day7_2 = do
+    input = getInput("day7.input") |> splitOnNewline |> List.filterMap toPuzzleInput
+    input
+        |> List.filter solvable2
+        |> List.map target
+        |> Nat.sum
