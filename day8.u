@@ -1,0 +1,112 @@
+type Antenna = {symbol: Char, position: Position}
+type Day8Puzzle = {antennas: [Antenna], maxX: Nat, maxY: Nat}
+
+iCoords : Position -> (Int, Int)
+iCoords p =
+    (toInt (x p), toInt (y p))
+
+ab : Position -> Position -> Vector
+ab a b =
+    let (xa, ya) = iCoords a
+        let (xb, yb) = iCoords b
+            Vector (xb - xa) (yb - ya)
+
+rotate180 : Vector -> Vector
+rotate180 v =
+    use Int
+    let (x, y) = (x v, y v)
+        Vector (negate x) (negate y)
+
+goToMaybe : Nat -> Nat -> Position -> Vector -> Optional Position
+goToMaybe maxX maxY p v =
+    let (imaxX, imaxY) = (toInt maxX, toInt maxY)
+        let (ix, iy) = iCoords p
+            let (vx, vy) = (x v, y v)
+                let (tx, ty) = (ix + vx, iy + vy)
+                    if (tx >= +0) && (tx <= imaxX) && (ty >= +0) && (ty <= imaxY) then
+                        Some (Position (truncate0 tx) (truncate0 ty))
+                    else
+                        None
+
+addUntilOffGrid : Nat -> Nat ->  Position -> Vector -> Set Position -> Set Position
+addUntilOffGrid maxX maxY p v positions =
+    match goToMaybe maxX maxY p v with
+    Some pos -> addUntilOffGrid maxX maxY pos v (Set.insert pos positions)
+    None -> positions
+
+lib.base.data.Set.insertMaybe : Optional a -> Set a -> Set a
+lib.base.data.Set.insertMaybe a s =
+    match a with
+    Some elt -> Set.insert elt s
+    None -> s
+
+
+toDay8PuzzleHelper : [Text] -> [Antenna] -> Position -> [Antenna]
+toDay8PuzzleHelper l a p =
+    match readAt p l with
+    ?. -> a
+    c  -> cons (Antenna c p) a
+
+toDay8Puzzle : [Text] -> Day8Puzzle
+toDay8Puzzle l =
+    let maxX = (head l |> getOrBug "Expected line" |> size) - 1
+        let maxY = size l - 1
+            let antennas = allPositions l |> foldLeft (toDay8PuzzleHelper l) []
+                Day8Puzzle antennas maxX maxY
+
+interferencePoints : Nat -> Nat -> Antenna -> Antenna -> (Optional Position, Optional Position)
+interferencePoints maxX maxY a b =
+    if (symbol a) == (symbol b) then
+        let d = ab (position a) (position b)
+            let md = rotate180 d
+                let p1 = goToMaybe maxX maxY (position a) md
+                    let p2 = goToMaybe maxX maxY (position b) d
+                        (p1, p2)
+    else
+        (None, None)
+
+
+findInterferencePointsHelper : Nat -> Nat -> Set Position -> (Antenna, Antenna) -> Set Position
+findInterferencePointsHelper maxX maxY points pair =
+    let (a, b) = pair
+        let (p1, p2) = interferencePoints maxX maxY a b
+            points
+                |> insertMaybe p1
+                |> insertMaybe p2
+
+findInterferencePointsHelper2 : Nat -> Nat -> Set Position -> (Antenna, Antenna) -> Set Position
+findInterferencePointsHelper2 maxX maxY points pair =
+    let (a, b) = pair
+        if symbol a == symbol b then
+            let v1 = ab (position a) (position b)
+                let v2 = ab (position b) (position a)
+                    points
+                        |> addUntilOffGrid maxX maxY (position a) v1
+                        |> addUntilOffGrid maxX maxY (position b) v2
+        else
+            points
+
+
+findInterferencePoints : Day8Puzzle -> Set Position
+findInterferencePoints p =
+    allPairs (antennas p)
+        |> foldLeft (findInterferencePointsHelper (maxX p) (maxY p)) Set.empty
+
+findInterferencePoints2 : Day8Puzzle -> Set Position
+findInterferencePoints2 p =
+    allPairs (antennas p)
+        |> foldLeft (findInterferencePointsHelper2 (maxX p) (maxY p)) Set.empty
+
+day8_1 : '{IO, Exception} Nat
+day8_1 = do
+    input = getInput("day8.input") |> Text.splitOnNewline |> filter ((!=) "") |> toDay8Puzzle
+    input
+        |> findInterferencePoints
+        |> Set.size
+
+day8_2 : '{IO, Exception} Nat
+day8_2 = do
+    input = getInput("day8.input") |> Text.splitOnNewline |> filter ((!=) "") |> toDay8Puzzle
+    input
+        |> findInterferencePoints2
+        |> Set.size
